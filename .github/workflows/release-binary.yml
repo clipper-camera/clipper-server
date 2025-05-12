@@ -55,14 +55,17 @@ jobs:
       - name: Create binary directory
         run: mkdir -p dist/binary
 
-      - name: Package binary
+      - name: Package binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path clipper-server.exe -DestinationPath dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.zip -Force
+
+      - name: Package binary (Unix)
+        if: matrix.os != 'windows-latest'
         shell: bash
         run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            powershell Compress-Archive -Path clipper-server.exe -DestinationPath dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.zip -Force
-          else
-            tar -czf dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.tar.gz clipper-server
-          fi
+          tar -czf dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.tar.gz clipper-server
 
       - name: Upload to Release
         if: github.event_name == 'release'
