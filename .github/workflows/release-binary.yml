@@ -63,7 +63,7 @@ jobs:
             tar -czf dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.tar.gz clipper-server
           fi
 
-      - name: Upload artifact
+      - name: Upload to Release
         if: github.event_name == 'release'
         uses: actions/upload-release-asset@v1
         env:
@@ -74,9 +74,9 @@ jobs:
           asset_name: ${{ matrix.artifact_name }}-${{ env.VERSION }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }}
           asset_content_type: ${{ matrix.os == 'windows-latest' && 'application/zip' || 'application/gzip' }}
 
-      - name: Upload build artifact
+      - name: Upload Build Artifact
         if: github.event_name == 'push'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}-${{ env.VERSION }}
           path: ./dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }} 
