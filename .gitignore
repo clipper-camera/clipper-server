@@ -1,0 +1,7 @@
+contacts.json
+bin
+bin/*
+media
+media/*
+.idea/*
+.vscode/*
