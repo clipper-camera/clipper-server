@@ -3,6 +3,7 @@
 This is the server backend for the [Clipper App](https://github.com/clipper-camera/clipper-app) which can be self-hosted to enable the photo and video sharing functionality. The server serves both the contact list to each user along with is a common upload/download location for all users. Checkout the [contacts_example.json](./contacts_example.json) which defines both each user's passwords, names, and friend list they should be served.
 
 
+Key Features:
 - **User Management**: Manages user accounts and relationships through a contacts.json configuration file
 - **Media Storage**: Provides a centralized location for storing and serving photos/videos
 - **API Endpoints**:
@@ -16,12 +17,13 @@ This is the server backend for the [Clipper App](https://github.com/clipper-came
 ## How to Run
 
 To run the current code from your go workspace:
-```
+```bash
 CLIPPER_CONTACTS_FILE="$(pwd)/contacts_example.json" go run ./cmd/clipper-server/main.go
 ```
 
 To run the server in a Docker container one can do the following:
-```
+
+```bash
 # Build the image
 docker build -t clipper-server .
 

@@ -11,6 +11,13 @@ import (
 	"github.com/clipper-camera/clipper-server/internal/config"
 )
 
+const (
+	// FileRetentionDuration is how long files are kept after being downloaded
+	FileRetentionDuration = 10 * time.Minute
+	// CleanupCheckInterval is how often we check for files to delete
+	CleanupCheckInterval = 2 * time.Minute
+)
+
 type CleanupService struct {
 	cfg    *config.Config
 	logger *log.Logger
@@ -77,9 +84,9 @@ func (s *CleanupService) cleanupExpiredFiles() {
 				if firstDownloadedAt, ok := metadata["firstDownloadedAt"].(float64); ok {
 					// Convert milliseconds to time.Time
 					downloadTime := time.UnixMilli(int64(firstDownloadedAt))
-					timeUntilDeletion := 10*time.Minute - time.Since(downloadTime)
+					timeUntilDeletion := FileRetentionDuration - time.Since(downloadTime)
 
-					if time.Since(downloadTime) >= 10*time.Minute {
+					if time.Since(downloadTime) >= FileRetentionDuration {
 						// Delete the media file (remove .json extension)
 						mediaPath := strings.TrimSuffix(metadataPath, ".json")
 						mediaFileName := filepath.Base(mediaPath)
@@ -124,7 +131,7 @@ func (s *CleanupService) cleanupExpiredFiles() {
 			}
 		}
 
-		// Sleep for 2 minutes before next cleanup
-		time.Sleep(2 * time.Minute)
+		// Sleep for the retention time before next cleanup
+		time.Sleep(CleanupCheckInterval)
 	}
 }
