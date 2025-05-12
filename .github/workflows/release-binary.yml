@@ -3,6 +3,13 @@ name: Binary Release
 on:
   release:
     types: [created]
+  push:
+    branches:
+      - master
+
+# Add permissions block
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -32,6 +39,15 @@ jobs:
       - name: Get dependencies
         run: go mod download
 
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=dev-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+          fi
+
       - name: Build
         run: go build -v -o clipper-server ./cmd/clipper-server
 
@@ -42,17 +58,25 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            zip -r dist/binary/${{ matrix.artifact_name }}.zip clipper-server
+            zip -r dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.zip clipper-server
           else
-            tar -czf dist/binary/${{ matrix.artifact_name }}.tar.gz clipper-server
+            tar -czf dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.tar.gz clipper-server
           fi
 
       - name: Upload artifact
+        if: github.event_name == 'release'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./dist/binary/${{ matrix.artifact_name }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }}
-          asset_name: ${{ matrix.artifact_name }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }}
-          asset_content_type: ${{ matrix.os == 'windows-latest' && 'application/zip' || 'application/gzip' }} 
+          asset_path: ./dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }}
+          asset_name: ${{ matrix.artifact_name }}-${{ env.VERSION }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }}
+          asset_content_type: ${{ matrix.os == 'windows-latest' && 'application/zip' || 'application/gzip' }}
+
+      - name: Upload build artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}-${{ env.VERSION }}
+          path: ./dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }} 
