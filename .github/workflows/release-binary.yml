@@ -59,7 +59,19 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          Compress-Archive -Path clipper-server.exe -DestinationPath dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.zip -Force
+          Write-Host "Current directory: $PWD"
+          Write-Host "Listing current directory contents:"
+          Get-ChildItem
+          Write-Host "Checking if clipper-server.exe exists:"
+          Test-Path "clipper-server.exe"
+          $exePath = Join-Path $PWD "clipper-server.exe"
+          Write-Host "Full path to exe: $exePath"
+          Write-Host "Checking if full path exists:"
+          Test-Path $exePath
+          Write-Host "Creating zip file..."
+          Compress-Archive -Path $exePath -DestinationPath "dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.zip" -Force
+          Write-Host "Zip file created. Contents of dist/binary:"
+          Get-ChildItem "dist/binary"
 
       - name: Package binary (Unix)
         if: matrix.os != 'windows-latest'
