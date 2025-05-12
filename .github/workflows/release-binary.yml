@@ -1,0 +1,58 @@
+name: Binary Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    name: Build Binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: clipper-server-linux
+          - os: windows-latest
+            artifact_name: clipper-server-windows
+          - os: macos-latest
+            artifact_name: clipper-server-macos
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+          check-latest: true
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build -v -o clipper-server ./...
+
+      - name: Create binary directory
+        run: mkdir -p dist/binary
+
+      - name: Package binary
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            zip -r dist/binary/${{ matrix.artifact_name }}.zip clipper-server
+          else
+            tar -czf dist/binary/${{ matrix.artifact_name }}.tar.gz clipper-server
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./dist/binary/${{ matrix.artifact_name }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }}
+          asset_name: ${{ matrix.artifact_name }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }}
+          asset_content_type: ${{ matrix.os == 'windows-latest' && 'application/zip' || 'application/gzip' }} 
