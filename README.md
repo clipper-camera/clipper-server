@@ -33,8 +33,8 @@ docker run -d \
   -e CLIPPER_CONTACTS_FILE=/app/config/contacts.json \
   -e CLIPPER_MEDIA_DIR=/app/media \
   -e CLIPPER_PORT=8080 \
-  -e PID=1000 \
-  -e GUID=1000 \
+  -e PID=99 \
+  -e GUID=100 \
   clipper-server
 ```
 

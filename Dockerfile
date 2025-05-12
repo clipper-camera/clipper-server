@@ -13,7 +13,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/clipper-camera-server
+RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/clipper-server/main.go
 
 # Final stage
 FROM alpine:latest
@@ -33,8 +33,8 @@ RUN mkdir -p /app/config /app/media
 ENV CLIPPER_CONTACTS_FILE=/app/config/contacts.json
 ENV CLIPPER_MEDIA_DIR=/app/media
 ENV CLIPPER_PORT=8080
-ENV PID=1000
-ENV GUID=1000
+ENV PID=99
+ENV GUID=100
 
 # Create a non-root user
 RUN adduser -D -u ${PID} -g ${GUID} appuser
