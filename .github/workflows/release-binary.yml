@@ -59,7 +59,7 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            zip -r dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.zip clipper-server
+            powershell Compress-Archive -Path clipper-server.exe -DestinationPath dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.zip -Force
           else
             tar -czf dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.tar.gz clipper-server
           fi
