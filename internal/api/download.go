@@ -88,7 +88,7 @@ func (h *Handler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 	// Set headers for file download
 	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Length", string(fileInfo.Size()))
+	w.Header().Set("Content-Length", strconv.FormatInt(fileInfo.Size(), 10))
 
 	// Create custom response writer to track successful write
 	customWriter := &customResponseWriter{ResponseWriter: w}

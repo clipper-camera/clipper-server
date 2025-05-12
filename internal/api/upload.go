@@ -129,7 +129,7 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		if friendMap[recipient] {
 			validRecipients = append(validRecipients, recipient)
 		} else {
-			h.logger.Printf("User attempted to send to non-friend user ID %v\n", recipient)
+			h.logger.Printf("User attempted to send to non-friend user ID %d\n", recipient)
 		}
 	}
 
@@ -182,7 +182,7 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		// Create recipient's mailbox directory
 		mailboxDir := filepath.Join(h.cfg.MediaDir, "mailboxes", strconv.Itoa(recipient))
 		if err := os.MkdirAll(mailboxDir, 0755); err != nil {
-			h.logger.Printf("Error creating mailbox directory for %s: %v\n", recipient, err)
+			h.logger.Printf("Error creating mailbox directory for %d: %v\n", recipient, err)
 			continue
 		}
 
@@ -193,7 +193,7 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 
 		// Save the file
 		if err := os.WriteFile(filePath, fileContent, 0644); err != nil {
-			h.logger.Printf("Error saving file for %s: %v\n", recipient, err)
+			h.logger.Printf("Error saving file for %d: %v\n", recipient, err)
 			continue
 		}
 
@@ -201,12 +201,12 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		metadataPath := filePath + ".json"
 		metadataFile, err := os.Create(metadataPath)
 		if err != nil {
-			h.logger.Printf("Error creating metadata file for %s: %v\n", recipient, err)
+			h.logger.Printf("Error creating metadata file for %d: %v\n", recipient, err)
 			continue
 		}
 
 		if err := json.NewEncoder(metadataFile).Encode(metadata); err != nil {
-			h.logger.Printf("Error encoding metadata for %s: %v\n", recipient, err)
+			h.logger.Printf("Error encoding metadata for %d: %v\n", recipient, err)
 			metadataFile.Close()
 			continue
 		}
