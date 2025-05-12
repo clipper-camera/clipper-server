@@ -33,7 +33,7 @@ jobs:
         run: go mod download
 
       - name: Build
-        run: go build -v -o clipper-server ./...
+        run: go build -v -o clipper-server ./cmd/clipper-server
 
       - name: Create binary directory
         run: mkdir -p dist/binary
