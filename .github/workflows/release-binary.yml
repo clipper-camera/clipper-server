@@ -50,7 +50,12 @@ jobs:
           fi
 
       - name: Build
-        run: go build -v -o clipper-server ./cmd/clipper-server
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            go build -v -o clipper-server.exe ./cmd/clipper-server
+          else
+            go build -v -o clipper-server ./cmd/clipper-server
+          fi
 
       - name: Create binary directory
         run: mkdir -p dist/binary
@@ -59,19 +64,10 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          Write-Host "Current directory: $PWD"
-          Write-Host "Listing current directory contents:"
-          Get-ChildItem
-          Write-Host "Checking if clipper-server.exe exists:"
-          Test-Path "clipper-server.exe"
-          $exePath = Join-Path $PWD "clipper-server.exe"
-          Write-Host "Full path to exe: $exePath"
-          Write-Host "Checking if full path exists:"
-          Test-Path $exePath
           Write-Host "Creating zip file..."
+          $exePath = Join-Path $PWD "clipper-server.exe"
           Compress-Archive -Path $exePath -DestinationPath "dist/binary/${{ matrix.artifact_name }}-${{ env.VERSION }}.zip" -Force
-          Write-Host "Zip file created. Contents of dist/binary:"
-          Get-ChildItem "dist/binary"
+          Write-Host "Zip file created successfully"
 
       - name: Package binary (Unix)
         if: matrix.os != 'windows-latest'
