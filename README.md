@@ -1,5 +1,7 @@
 # Clipper Server
 
+[![Add to Home Assistant](https://my.home-assistant.io/badges/supervisor_addon.svg)](https://my.home-assistant.io/redirect/supervisor_addon/?addon=goldbattle/clipper-server-addon&repository_url=https://github.com/clipper-camera/clipper-server)
+
 This is the server backend for the [Clipper App](https://github.com/clipper-camera/clipper-app) which can be self-hosted to enable the photo and video sharing functionality. The server serves both the contact list to each user along with is a common upload/download location for all users. Checkout the [contacts_example.json](./contacts_example.json) which defines both each user's passwords, names, and friend list they should be served.
 
 
