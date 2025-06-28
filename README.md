@@ -30,13 +30,9 @@ docker build -t clipper-server .
 # Run the container with custom environment variables
 docker run -d \
   -p 8080:8080 \
-  -v /path/to/your/contacts.json:/app/config/contacts.json \
-  -v /path/to/media:/app/media \
-  -e CLIPPER_CONTACTS_FILE=/app/config/contacts.json \
-  -e CLIPPER_MEDIA_DIR=/app/media \
-  -e CLIPPER_PORT=8080 \
-  -e PID=99 \
-  -e GUID=100 \
+  -v /path/to/your/contacts.json:/config/clipper/contacts.json \
+  -v /path/to/media:/data/clipper/media \
+  -e CLIPPER_CONTACTS_FILE=/config/clipper/contacts.json \
   clipper-server
 ```
 

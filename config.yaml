@@ -1,0 +1,22 @@
+name: "Clipper Server"
+description: "The self-hosted server for the Clipper app enabling photo and video sharing functionality"
+version: "1.0.1"
+slug: "clipper-server"
+url: https://github.com/clipper-camera/clipper-server 
+panel_icon: "mdi:server"
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+startup: application
+init: false
+ports:
+  8080/tcp: 8080
+options:
+  contacts_file: /config/clipper/contacts.json
+schema:
+  contacts_file: str
+map:
+  - config:rw
