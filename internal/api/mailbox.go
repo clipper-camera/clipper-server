@@ -96,6 +96,11 @@ func (h *Handler) GetMailbox(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			metadata["fileUrl"] = "/_api/v1/download/" + userPass + "/" + file.Name()
+			// So the client can show how big a clip is before committing to
+			// downloading it
+			if info, err := file.Info(); err == nil {
+				metadata["fileSize"] = info.Size()
+			}
 		}
 
 		// Remove recipients field, after the metadata above is persisted so the

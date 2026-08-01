@@ -1,6 +1,6 @@
 name: "Clipper Server"
 description: "The self-hosted server for the Clipper app enabling photo and video sharing functionality"
-version: "1.1.0"
+version: "1.2.0"
 slug: "clipper-server"
 url: https://github.com/clipper-camera/clipper-server 
 panel_icon: "mdi:server"

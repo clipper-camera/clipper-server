@@ -188,6 +188,10 @@ func TestMediaMessageRoundTrip(t *testing.T) {
 	if !ok {
 		t.Fatalf("media message has no fileUrl: %+v", mailbox[0])
 	}
+	// Listed up front so the client can show the size before downloading
+	if size, _ := mailbox[0]["fileSize"].(float64); int(size) != len("jpeg-bytes") {
+		t.Errorf("fileSize = %v, want %d", mailbox[0]["fileSize"], len("jpeg-bytes"))
+	}
 
 	var receipts []Receipt
 	getJSON(t, srv, "/_api/v1/receipts/"+bobPass, &receipts)

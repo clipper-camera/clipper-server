@@ -43,7 +43,8 @@ covers every recipient of that send.
 **Receiving.** `GET /_api/v1/mailbox/{password}` lists what is waiting, newest
 first. Every item carries `id`, `timestamp`, `userId` (the sender) and
 `mediaType`. Text messages carry their body inline as `text`; photos and videos
-carry a `fileUrl` to `GET` next.
+carry a `fileUrl` to `GET` next, along with `fileSize` in bytes so a client can
+show how big a clip is before committing to the download.
 
 **Delivery receipts.** A message counts as delivered when the recipient
 actually takes it: when a text message is handed over in their mailbox listing,
