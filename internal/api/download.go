@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 
 	"github.com/clipper-camera/clipper-server/internal/helpers"
 	"github.com/go-chi/chi/v5"
@@ -39,28 +38,21 @@ func (h *Handler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load users from contacts file
-	users, err := helpers.LoadUsers(h.cfg.ContactsFile)
+	// Lets lookup the user from the password
+	user, err := helpers.LookupUser(h.cfg.ContactsFile, userPass)
 	if err != nil {
 		h.logger.Printf("Error loading users: %v\n", err)
 		http.Error(w, "Unable to read contacts", http.StatusInternalServerError)
 		return
 	}
-
-	// Lets lookup the user ID from the password
-	userId := -1
-	for _, user := range users {
-		if user.Password == userPass {
-			userId = user.ID
-		}
-	}
-	if userId == -1 {
-		http.Error(w, "User ID is required", http.StatusBadRequest)
+	if user == nil {
+		http.Error(w, "Invalid user password", http.StatusForbidden)
 		return
 	}
 
-	// Construct the file path
-	filePath := filepath.Join(h.cfg.MediaDir, "mailboxes", strconv.Itoa(userId), filename)
+	// Construct the file path. filepath.Base keeps a crafted filename from
+	// walking out of the caller's own mailbox.
+	filePath := filepath.Join(h.cfg.MediaDir, "mailboxes", strconv.Itoa(user.ID), filepath.Base(filename))
 
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -112,21 +104,11 @@ func (h *Handler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Check if this is the first download
-		_, exists := metadata["firstDownloadedAt"]
-		if !exists {
-			// This is the first download, set the timestamp in milliseconds
-			metadata["firstDownloadedAt"] = time.Now().UnixMilli()
-			updatedMetadata, err := json.Marshal(metadata)
-			if err != nil {
-				h.logger.Printf("Error marshaling metadata: %v\n", err)
-				return
-			}
-
-			if err := os.WriteFile(metadataPath, updatedMetadata, 0644); err != nil {
-				h.logger.Printf("Error updating metadata: %v\n", err)
-				return
-			}
+		// Starts the expiry clock and leaves a receipt for the sender, on the
+		// first download only
+		if err := helpers.MarkDelivered(h.cfg.MediaDir, metadataPath, metadata); err != nil {
+			h.logger.Printf("Error marking %s delivered: %v\n", filename, err)
+			return
 		}
 	}
 }

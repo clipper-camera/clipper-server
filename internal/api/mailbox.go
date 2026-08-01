@@ -21,28 +21,20 @@ func (h *Handler) GetMailbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load users from contacts file
-	users, err := helpers.LoadUsers(h.cfg.ContactsFile)
+	// Lets lookup the user from the password
+	user, err := helpers.LookupUser(h.cfg.ContactsFile, userPass)
 	if err != nil {
 		h.logger.Printf("Error loading users: %v\n", err)
 		http.Error(w, "Unable to read contacts", http.StatusInternalServerError)
 		return
 	}
-
-	// Lets lookup the user ID from the password
-	userId := -1
-	for _, user := range users {
-		if user.Password == userPass {
-			userId = user.ID
-		}
-	}
-	if userId == -1 {
-		http.Error(w, "User ID is required", http.StatusBadRequest)
+	if user == nil {
+		http.Error(w, "Invalid user password", http.StatusForbidden)
 		return
 	}
 
 	// Construct the mailbox path
-	mailboxPath := filepath.Join(h.cfg.MediaDir, "mailboxes", strconv.Itoa(userId))
+	mailboxPath := filepath.Join(h.cfg.MediaDir, "mailboxes", strconv.Itoa(user.ID))
 
 	// Check if mailbox exists
 	if _, err := os.Stat(mailboxPath); os.IsNotExist(err) {
@@ -86,23 +78,38 @@ func (h *Handler) GetMailbox(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Remove recipients field
+		// Stable per-message id, shared with the receipt the sender collects
+		metadata["id"] = helpers.MessageID(file.Name())
+
+		if metadata["mediaType"] == "text" {
+			// A chat message has no second download step, handing the body over
+			// in this response is the delivery, so the receipt fires here.
+			content, err := os.ReadFile(filepath.Join(mailboxPath, file.Name()))
+			if err != nil {
+				h.logger.Printf("Error reading text message %s: %v\n", file.Name(), err)
+				continue
+			}
+			metadata["text"] = string(content)
+
+			if err := helpers.MarkDelivered(h.cfg.MediaDir, metadataPath, metadata); err != nil {
+				h.logger.Printf("Error marking %s delivered: %v\n", file.Name(), err)
+			}
+		} else {
+			metadata["fileUrl"] = "/_api/v1/download/" + userPass + "/" + file.Name()
+		}
+
+		// Remove recipients field, after the metadata above is persisted so the
+		// stored copy keeps its full fanout list
 		delete(metadata, "recipients")
 
-		// Add fileUrl to metadata
-		metadata["fileUrl"] = "/_api/v1/download/" + userPass + "/" + file.Name()
-
-		// Add mediaType to metadata
-		if mediaType, ok := metadata["mediaType"]; ok {
-			metadata["mediaType"] = mediaType
-		}
 		items = append(items, metadata)
 	}
 
-	// Sort items by timestamp (newest first)
+	// Sort items by timestamp (newest first). Timestamps are stored as unix
+	// numbers, so they come back out of JSON as float64, not string.
 	sort.Slice(items, func(i, j int) bool {
-		ts1, ok1 := items[i]["timestamp"].(string)
-		ts2, ok2 := items[j]["timestamp"].(string)
+		ts1, ok1 := items[i]["timestamp"].(float64)
+		ts2, ok2 := items[j]["timestamp"].(float64)
 		if !ok1 || !ok2 {
 			return false
 		}

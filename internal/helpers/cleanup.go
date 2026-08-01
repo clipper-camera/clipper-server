@@ -16,6 +16,10 @@ const (
 	FileRetentionDuration = 10 * time.Minute
 	// CleanupCheckInterval is how often we check for files to delete
 	CleanupCheckInterval = 2 * time.Minute
+	// ReceiptRetentionDuration is how long an uncollected delivery receipt is
+	// held for a sender who never comes back to pick it up. Generous, since it
+	// is only a directory entry, but bounded so they cannot pile up forever.
+	ReceiptRetentionDuration = 7 * 24 * time.Hour
 )
 
 type CleanupService struct {
@@ -42,8 +46,13 @@ func (s *CleanupService) cleanupExpiredFiles() {
 		// Read all user directories
 		userDirs, err := os.ReadDir(mailboxesDir)
 		if err != nil {
-			s.logger.Printf("Error reading mailboxes directory: %v\n", err)
-			time.Sleep(2 * time.Minute)
+			// A server with nothing sent yet has no mailboxes directory, which
+			// is normal rather than something to log about every cycle
+			if !os.IsNotExist(err) {
+				s.logger.Printf("Error reading mailboxes directory: %v\n", err)
+			}
+			s.cleanupExpiredReceipts()
+			time.Sleep(CleanupCheckInterval)
 			continue
 		}
 
@@ -131,7 +140,51 @@ func (s *CleanupService) cleanupExpiredFiles() {
 			}
 		}
 
+		s.cleanupExpiredReceipts()
+
 		// Sleep for the retention time before next cleanup
 		time.Sleep(CleanupCheckInterval)
+	}
+}
+
+// cleanupExpiredReceipts drops delivery confirmations that no sender ever came
+// back to collect. Normally GetReceipts deletes them on read and this finds
+// nothing.
+func (s *CleanupService) cleanupExpiredReceipts() {
+	receiptsDir := filepath.Join(s.cfg.MediaDir, "receipts")
+
+	userDirs, err := os.ReadDir(receiptsDir)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			s.logger.Printf("Error reading receipts directory: %v\n", err)
+		}
+		return
+	}
+
+	for _, userDir := range userDirs {
+		if !userDir.IsDir() {
+			continue
+		}
+
+		userPath := filepath.Join(receiptsDir, userDir.Name())
+		receipts, err := os.ReadDir(userPath)
+		if err != nil {
+			s.logger.Printf("Error reading receipts for user %s: %v\n", userDir.Name(), err)
+			continue
+		}
+
+		for _, receipt := range receipts {
+			info, err := receipt.Info()
+			if err != nil || time.Since(info.ModTime()) < ReceiptRetentionDuration {
+				continue
+			}
+
+			s.logger.Printf("🗑️  Deleting uncollected receipt: %s (user: %s, age: %s)\n",
+				receipt.Name(), userDir.Name(), time.Since(info.ModTime()).Round(time.Second))
+
+			if err := os.Remove(filepath.Join(userPath, receipt.Name())); err != nil {
+				s.logger.Printf("Error deleting receipt %s: %v\n", receipt.Name(), err)
+			}
+		}
 	}
 }

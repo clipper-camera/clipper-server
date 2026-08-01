@@ -8,11 +8,55 @@ This is the server backend for the [Clipper App](https://github.com/clipper-came
 Key Features:
 - **User Management**: Manages user accounts and relationships through a contacts.json configuration file
 - **Media Storage**: Provides a centralized location for storing and serving photos/videos
+- **Chat**: Text messages alongside photos and videos, with delivery receipts
 - **API Endpoints**:
   - Contact list retrieval for each user
   - File upload/download functionality 
   - Mailbox management for viewing shared media
+  - Delivery receipts for messages you sent
   - Health check endpoint
+
+
+## Messaging
+
+The server is a relay, not a message store. It holds a message only until the
+recipient picks it up, then deletes it (10 minutes after pickup, so a flaky
+client can retry). Conversation history lives on the devices.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /_api/v1/upload` | Send a message to one or more of your friends |
+| `GET /_api/v1/mailbox/{password}` | List messages waiting for you |
+| `GET /_api/v1/download/{password}/{filename}` | Fetch a photo or video |
+| `GET /_api/v1/receipts/{password}` | Collect confirmations that your messages arrived |
+
+**Sending.** `POST /_api/v1/upload` is a multipart form taking `userPass`,
+`recipients` (a JSON array of user ids, silently filtered to your friends),
+`timestamp`, and then either:
+
+- a `media` file part plus `mediaType` of `image` or `video`, or
+- a `text` field of up to 4096 bytes, for a chat message.
+
+It responds with `{"success": true, "messageId": "..."}`. One `messageId`
+covers every recipient of that send.
+
+**Receiving.** `GET /_api/v1/mailbox/{password}` lists what is waiting, newest
+first. Every item carries `id`, `timestamp`, `userId` (the sender) and
+`mediaType`. Text messages carry their body inline as `text`; photos and videos
+carry a `fileUrl` to `GET` next.
+
+**Delivery receipts.** A message counts as delivered when the recipient
+actually takes it: when a text message is handed over in their mailbox listing,
+or when a photo or video is downloaded. `GET /_api/v1/receipts/{password}`
+returns the confirmations waiting for you:
+
+```json
+[{"messageId": "1712345678901234567", "recipientId": 2, "deliveredAt": 1712345699000}]
+```
+
+Receipts are held until you collect them, so a delivery that happened while
+your app was closed is not lost, and are **deleted once returned** — poll this
+endpoint and record the result locally, since a second call will not repeat it.
 
 
 

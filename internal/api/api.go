@@ -71,6 +71,7 @@ func NewServer(ctx context.Context, cfg *config.Config, logger *log.Logger) *htt
 			r.Post("/upload", h.UploadMedia)
 			r.Get("/mailbox/{user_password}", h.GetMailbox)
 			r.Get("/download/{user_password}/{filename}", h.DownloadFile)
+			r.Get("/receipts/{user_password}", h.GetReceipts)
 		})
 	})
 

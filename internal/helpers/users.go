@@ -32,4 +32,21 @@ func LoadUsers(contactsFile string) ([]User, error) {
 	}
 
 	return users, nil
+}
+
+// LookupUser returns the user holding the given password, or nil if none does.
+// A nil user with a nil error means "bad password", not a server failure.
+func LookupUser(contactsFile, password string) (*User, error) {
+	users, err := LoadUsers(contactsFile)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range users {
+		if users[i].Password == password {
+			return &users[i], nil
+		}
+	}
+
+	return nil, nil
 } 

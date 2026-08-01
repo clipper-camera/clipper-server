@@ -13,9 +13,16 @@ import (
 	"github.com/clipper-camera/clipper-server/internal/helpers"
 )
 
+// MaxTextLength caps a chat message body. Text is stored inline in the
+// mailbox, so this is also the cap on what one message costs the server.
+const MaxTextLength = 4096
+
 type UploadResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success bool `json:"success"`
+	// MessageID identifies this message across every recipient it was fanned
+	// out to. Senders correlate delivery receipts against it.
+	MessageID string `json:"messageId"`
+	Message   string `json:"message"`
 }
 
 // RateLimitedReader wraps an io.Reader and limits the read rate
@@ -63,30 +70,13 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 	//rateLimitedBody := NewRateLimitedReader(r.Body, 500*1024)
 	//r.Body = io.NopCloser(rateLimitedBody)
 
-	// Load users from contacts file
-	users, err := helpers.LoadUsers(h.cfg.ContactsFile)
-	if err != nil {
-		h.logger.Printf("Error loading users: %v\n", err)
-		http.Error(w, "Unable to read contacts", http.StatusInternalServerError)
-		return
-	}
-
 	// Parse multipart form without memory limit
-	err = r.ParseMultipartForm(0) // 0 means no memory limit
+	err := r.ParseMultipartForm(0) // 0 means no memory limit
 	if err != nil {
 		h.logger.Printf("Error parsing form: %v\n", err)
 		http.Error(w, "Unable to parse form", http.StatusBadRequest)
 		return
 	}
-
-	// Get media file
-	file, header, err := r.FormFile("media")
-	if err != nil {
-		h.logger.Printf("Error getting media file: %v\n", err)
-		http.Error(w, "Unable to get media file", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
 
 	// Get form values
 	timestamp := r.FormValue("timestamp")
@@ -94,19 +84,51 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 	userPass := r.FormValue("userPass")
 	mediaType := r.FormValue("mediaType")
 	textOverlaysJSON := r.FormValue("textOverlays")
+	text := r.FormValue("text")
 
 	// Find the authenticated user and validate password
-	var currentUser *helpers.User
-	for i, user := range users {
-		if user.Password == userPass {
-			currentUser = &users[i]
-			break
-		}
+	currentUser, err := helpers.LookupUser(h.cfg.ContactsFile, userPass)
+	if err != nil {
+		h.logger.Printf("Error loading users: %v\n", err)
+		http.Error(w, "Unable to read contacts", http.StatusInternalServerError)
+		return
 	}
 	if currentUser == nil {
 		h.logger.Printf("Invalid user password provided\n")
 		http.Error(w, "Unauthorized user", http.StatusForbidden)
 		return
+	}
+
+	// The media file is optional: a chat message carries its body in the "text"
+	// field instead and is stored as a .txt in the mailbox. Fanout, delivery
+	// receipts and expiry then treat both kinds identically.
+	var fileContent []byte
+	var fileExt string
+
+	file, header, err := r.FormFile("media")
+	if err != nil {
+		if text == "" {
+			h.logger.Printf("Upload has neither media nor text: %v\n", err)
+			http.Error(w, "Either a media file or text is required", http.StatusBadRequest)
+			return
+		}
+		if len(text) > MaxTextLength {
+			h.logger.Printf("Rejected text message of %d bytes\n", len(text))
+			http.Error(w, "Message text is too long", http.StatusBadRequest)
+			return
+		}
+		fileContent = []byte(text)
+		fileExt = ".txt"
+		mediaType = "text"
+	} else {
+		defer file.Close()
+		fileContent, err = io.ReadAll(file)
+		if err != nil {
+			h.logger.Printf("Error reading file content: %v\n", err)
+			http.Error(w, "Unable to read file content", http.StatusInternalServerError)
+			return
+		}
+		fileExt = filepath.Ext(header.Filename)
 	}
 
 	// Create a map of friend IDs for quick lookup
@@ -169,14 +191,6 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		metadata["textOverlays"] = textOverlays
 	}
 
-	// Read the file content once
-	fileContent, err := io.ReadAll(file)
-	if err != nil {
-		h.logger.Printf("Error reading file content: %v\n", err)
-		http.Error(w, "Unable to read file content", http.StatusInternalServerError)
-		return
-	}
-
 	// For each recipient, create their mailbox and save the file
 	for _, recipient := range validRecipients {
 		// Create recipient's mailbox directory
@@ -187,7 +201,6 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Create filename with server-side timestamp
-		fileExt := filepath.Ext(header.Filename)
 		newFilename := fmt.Sprintf("%s%s", serverTimestamp, fileExt)
 		filePath := filepath.Join(mailboxDir, newFilename)
 
@@ -216,8 +229,9 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 	// Send success response
 	w.Header().Set("Content-Type", "application/json")
 	response := UploadResponse{
-		Success: true,
-		Message: "File uploaded successfully",
+		Success:   true,
+		MessageID: serverTimestamp,
+		Message:   "File uploaded successfully",
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		h.logger.Printf("Error encoding response: %v\n", err)
